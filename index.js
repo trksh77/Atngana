@@ -7,9 +7,9 @@ const service = new WOLF();
 
 // الإعدادات - تأكد من تعبئة البيانات في ملف .env
 const settings = {
-    allowedGroupIds: [ 81889058], // أرقام القنوات المسموح بها
+    allowedGroupIds: [81889058], // أرقام القنوات المسموح بها
     verificationGroupId: 9969,          // القناة التي يرسل فيها الحل
-    apiKey: process.env.API_KEY         // مفتاحك هنا
+    apiKey: process.env.API_KEY || 'K83171079488957'
 };
 
 // دالة الحل الذكية
@@ -72,4 +72,20 @@ service.on('groupMessage', async (message) => {
 
     let imageUrl = null;
     if (message.type === 'text/image_link') imageUrl = message.body;
-    else if (message.attachments && message.attachments.length
+    else if (message.attachments && message.attachments.length > 0) imageUrl = message.attachments[0].link;
+
+    if (imageUrl) {
+        console.log(`✅ تم اكتشاف صورة في القناة ${message.targetGroupId}`);
+        const solution = await solveCaptcha(imageUrl);
+        
+        if (solution) {
+            await service.messaging.sendGroupMessage(settings.verificationGroupId, `#${solution}`);
+        }
+    }
+});
+
+service.on('ready', () => {
+    console.log("🚀 البوت متصل وجاهز للعمل!");
+});
+
+service.login(process.env.U_MAIL, process.env.U_PASS);
