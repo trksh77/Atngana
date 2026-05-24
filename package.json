@@ -1,12 +1,17 @@
 {
-  "name": "wolf-bot",
+  "name": "wolf-captcha-bot",
   "version": "1.0.0",
-  "type": "module",
+  "description": "WOLF captcha solver bot",
   "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
-    "wolf.js": "latest",
-    "axios": "latest",
-    "tesseract.js": "latest",
-    "jimp": "0.22.10"
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
+    "sharp": "^0.33.4",
+    "tesseract.js": "^5.1.0",
+    "wolf.js": "^1.7.0"
   }
 }
