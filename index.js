@@ -6,12 +6,14 @@ import { createWorker } from 'tesseract.js';
 const { WOLF } = wolfjs;
 const client = new WOLF();
 
-const CHANNEL_ID = 81889058;
-const BOT_ID = 51660277; // ضع ID الخاص بالبوت هنا لتجنب التكرار
+// --- الإعدادات ---
+const TARGET_USER_ID = 51660277; // مُرسل الصور
+const CHANNEL_ID = 81889058;     // القناة
 const INTERVAL_MS = 63000;
+const TARGET_PLAYER_NAME = 'KSA'; // الاسم الذي تريد البوت أن يجاوب له فقط
 
 client.on('ready', async () => {
-    console.log("🚀 البوت متصل! جاهز للفلترة باسم اللاعب.");
+    console.log(`🚀 البوت متصل! سأجاوب فقط إذا كان اسم اللاعب يحتوي على: ${TARGET_PLAYER_NAME}`);
     await client.group.joinById(CHANNEL_ID);
     startAutomation();
 });
@@ -28,7 +30,7 @@ async function startAutomation() {
     }, INTERVAL_MS);
 }
 
-// 1. فحص اللون (التحقق البشري > 50%)
+// دالة فحص نسبة اللون الأحمر
 async function isCaptchaByColor(buffer) {
     const { data, info } = await sharp(buffer).raw().ensureAlpha().toBuffer({ resolveWithObject: true });
     let redPixels = 0;
@@ -37,36 +39,30 @@ async function isCaptchaByColor(buffer) {
         if (data[i] > 120 && data[i] > (data[i + 1] + 30) && data[i] > (data[i + 2] + 30)) redPixels++;
     }
     const percentage = (redPixels / totalPixels) * 100;
-    return percentage > 50; 
+    return percentage > 40;
 }
 
-// 2. استخراج اسم اللاعب
-async function getPlayerName(buffer) {
+// دالة استخراج اسم اللاعب
+async function extractPlayerName(buffer) {
     try {
-        const metadata = await sharp(buffer).metadata();
-        const { width, height } = metadata;
-        
-        // اقتصاص الجزء العلوي حيث يوجد الاسم
-        const crop = await sharp(buffer)
-            .extract({ left: Math.floor(width * 0.70), top: Math.floor(height * 0.05), width: Math.floor(width * 0.25), height: Math.floor(height * 0.05) })
+        const processedBuffer = await sharp(buffer)
             .greyscale()
-            .threshold(160)
+            .threshold(160) 
             .toBuffer();
 
         const worker = await createWorker('ara+eng');
-        const { data: { text } } = await worker.recognize(crop);
+        const { data: { text } } = await worker.recognize(processedBuffer);
         await worker.terminate();
 
-        // البحث عن الاسم بعد كلمة "اللاعب"
         const match = text.match(/اللاعب[:\s]+([^\n\r]+)/u);
-        return match ? match[1].trim() : "";
+        return match ? match[1].trim() : "لم يتم العثور على اسم";
     } catch (e) {
-        return "";
+        return "خطأ في القراءة";
     }
 }
 
 client.on('groupMessage', async (message) => {
-    if (message.targetGroupId != CHANNEL_ID || message.sourceSubscriberId == BOT_ID) return;
+    if (message.targetGroupId != CHANNEL_ID || message.sourceSubscriberId != TARGET_USER_ID) return;
     if (message.type !== 'text/image_link') return;
 
     const imageUrl = message.body;
@@ -75,29 +71,30 @@ client.on('groupMessage', async (message) => {
         const response = await fetch(imageUrl);
         const buffer = Buffer.from(await response.arrayBuffer());
 
-        // 1. فحص نسبة اللون الأحمر (> 50%)
+        // 1. الفحص: هل هي صورة كابتشا؟
         if (!(await isCaptchaByColor(buffer))) return;
 
-        // 2. فحص اسم اللاعب
-        const playerName = await getPlayerName(buffer);
-        console.log(`👤 تم فحص بطاقة، اللاعب هو: "${playerName}"`);
+        // 2. استخراج الاسم
+        const playerName = extractPlayerName(buffer); // (سأقوم بانتظارها في السطر التالي)
+        const name = await playerName;
+        console.log(`👤 اللاعب المكتشف: ${name}`);
 
-        // التحقق من اسم "king" (بشكل غير حساس لحالة الأحرف)
-        if (!playerName.toLowerCase().includes('ksa')) {
-            console.log("⏭️ تم تجاهل البطاقة (الاسم ليس king).");
+        // 3. فلتر اسم اللاعب (الشرط الجديد)
+        if (!name.toLowerCase().includes(TARGET_PLAYER_NAME.toLowerCase())) {
+            console.log(`⏭️ تم تجاهل البطاقة: الاسم "${name}" لا يطابق المطلوب.`);
             return;
         }
 
-        console.log("✅ الاسم يطابق، جاري الحل...");
-
-        // 3. حل الكابتشا
+        // 4. إذا تطابق الاسم، نحل الكابتشا
+        console.log(`✅ الاسم يطابق (${name})، جاري حل الكابتشا...`);
         const code = await solveCaptcha(buffer);
+        
         if (code) {
             await client.messaging.sendGroupMessage(CHANNEL_ID, `#${code}`);
-            console.log(`✅ تم إرسال الحل: #${code}`);
+            console.log(`✅ تم الإرسال: #${code}`);
         }
     } catch (err) {
-        console.error("⚠️ خطأ:", err.message);
+        console.error("⚠️ خطأ في المعالجة:", err.message);
     }
 });
 
@@ -114,7 +111,8 @@ async function solveCaptcha(buffer) {
             }
         }
     }
-    if (!found) return null;
+    
+    if (!found) throw new Error("لا يوجد إطار أصفر للحل");
 
     const margin = 10;
     const processedBuffer = await sharp(buffer)
