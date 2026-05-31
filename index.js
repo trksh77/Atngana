@@ -31,7 +31,7 @@ async function startAutomation() {
         } catch (err) {
             console.error("❌ خطأ في إرسال صندوق الفتح:", err.message);
         }
-    }, 5 * 60 * 1000);
+    }, 10 * 60 * 1000);
 
     // 2. مهمة صندوق ضمان وقت كل ساعة (3,600,000 مللي ثانية)
     setInterval(async () => {
