@@ -83,7 +83,24 @@ async function solveCaptcha(buffer) {
     return cleanText(text);
 }
 
+// --- دالة منطق فتح الصناديق ---
+async function processBoxOpening(g, s, b, currentPoints, isNotReady) {
+    const sendWithDelay = async (cmd) => {
+        await client.messaging.sendGroupMessage(CHANNEL_ID, cmd);
+        await new Promise(resolve => setTimeout(resolve, 10000));
+    };
 
+    if (isNotReady) {
+        while (g > 0) { await sendWithDelay('!مد صندوق فتح ذهبي'); g--; }
+        while (s > 0) { await sendWithDelay('!مد صندوق فتح فضي'); s--; }
+        while (b > 0) { await sendWithDelay('!مد صندوق فتح برونزي'); b--; }
+    } else if (currentPoints < 40) {
+        let needed = 42 - currentPoints;
+        while (needed > 0) {
+            if (needed >= 4 && g > 0) { await sendWithDelay('!مد صندوق فتح ذهبي'); g--; needed -= 4; }
+            else if (needed >= 2 && s > 0) { await sendWithDelay('!مد صندوق فتح فضي'); s--; needed -= 2; }
+            else if (needed >= 1 && b > 0) { await sendWithDelay('!مد صندوق فتح برونزي'); b--; needed -= 1; }
+            else break;
         }
     }
 }
