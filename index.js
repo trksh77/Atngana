@@ -10,7 +10,7 @@ const client = new WOLF();
 const TARGET_USER_ID = 84520026; 
 const CHANNEL_TASKS = 22271611;       // قناة المهام
 const CHANNEL_ALLIANCE = 22271611;    // قناة التحالف
-const TARGET_PLAYER_NAME = 'T'; 
+const TARGET_PLAYER_NAME = 'not here'; 
 
 client.on('ready', async () => {
     console.log(`🚀 البوت متصل! يراقب القناتين: ${CHANNEL_TASKS} و ${CHANNEL_ALLIANCE}`);
